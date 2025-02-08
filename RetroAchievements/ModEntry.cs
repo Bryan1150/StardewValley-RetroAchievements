@@ -15,6 +15,12 @@ namespace RetroAchievements
     /// <summary>The mod entry point.</summary>
     internal sealed class ModEntry : Mod
     {
+        private const string Host = "stage.retroachievements.org";
+        private const string UserAgent = "StardewValleyRetroAchievements/1.0";
+        private const int GameId = 32123; // Replace with your game ID
+        private string Username; // Replace with your credentials
+        private string Password; // Replace with your credentials
+
         private HashSet<int> previousAchievements = new HashSet<int>();
 
         // Only these mods are allowed; everything else is blocked
@@ -107,13 +113,13 @@ namespace RetroAchievements
             // Initialize the RetroAchievements API
             _client = new HttpClient();
             _header = new RequestHeader(
-                host: "stage.retroachievements.org",
-                game: 32123, // Replace with your game ID
+                host: Host,
+                game: GameId,
                 hardcore: false
             );
             _client.DefaultRequestHeaders.Add("User-Agent", $"StardewValleyRetroAchievements/1.0");
             // Perform login
-            Task.Run(() => Login("Bryan1150", "hi")).Wait(); // Replace with your credentials
+            Task.Run(() => Login(Username, Password)).Wait(); // Replace with your credentials
         }
 
         /// <summary>Event handler for when the game updates.</summary>
