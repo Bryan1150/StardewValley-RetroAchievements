@@ -7,6 +7,7 @@ using StardewValley;
 using StardewValley.Constants;
 using RASharpIntegration.Network;
 using xTile;
+using GenericModConfigMenu;
 
 #nullable disable
 
@@ -15,6 +16,14 @@ namespace RetroAchievements
     /// <summary>The mod entry point.</summary>
     internal sealed class ModEntry : Mod
     {
+        public sealed class ModConfig
+        {
+            public string Username { get; set; } = string.Empty;
+            public string Password { get; set; } = string.Empty;
+            public bool ExampleCheckbox { get; set; } = true; // Add this line
+        }
+        private ModConfig Config;
+
         private const string Host = "stage.retroachievements.org";
         private const string UserAgent = "StardewValleyRetroAchievements/1.0";
         private const int GameId = 32123; // Replace with your game ID
@@ -30,16 +39,57 @@ namespace RetroAchievements
                 "CJBok.CheatsMenu",
                 "SMAPI.ConsoleCommands",
                 "Brylefi.RetroAchievements",
-                "SMAPI.SaveBackup"
+                "SMAPI.SaveBackup",
+                "spacechase0.GenericModConfigMenu"
             };
 
         private RequestHeader _header;
         private HttpClient _client;
 
+        private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
+        {
+            // get Generic Mod Config Menu's API (if it's installed)
+            var configMenu = this.Helper.ModRegistry.GetApi<IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
+            if (configMenu is null)
+                return;
+
+            // register mod
+            configMenu.Register(
+                mod: this.ModManifest,
+                reset: () => this.Config = new ModConfig(),
+                save: () => this.Helper.WriteConfig(this.Config)
+            );
+
+            // add some config options
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
+                name: () => "Turn on Hardcore",
+                tooltip: () => "This blocks non-white listed mods",
+                getValue: () => this.Config.ExampleCheckbox,
+                setValue: value => this.Config.ExampleCheckbox = value
+            );
+            configMenu.AddTextOption(
+                mod: this.ModManifest,
+                name: () => "Username",
+                getValue: () => this.Config.Username,
+                setValue: value => this.Config.Username = value
+            );
+
+            configMenu.AddTextOption(
+                mod: this.ModManifest,
+                name: () => "Password",
+                getValue: () => new string('*', this.Config.Password.Length), // Mask it
+                setValue: value => this.Config.Password = value
+
+            );
+        }
+
+
         /// <summary>The mod entry point, called after the mod is first loaded.</summary>
         /// <param name="helper">Provides methods for interacting with the modding API.</param>
         public override void Entry(IModHelper helper)
         {
+            this.Config = this.Helper.ReadConfig<ModConfig>();
             if (!IsWhitelistedModsOnly())
             {
                 Monitor.Log("Unapproved mods detected! This mod will not run.", LogLevel.Warn);
@@ -48,6 +98,7 @@ namespace RetroAchievements
 
             helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
             helper.Events.GameLoop.UpdateTicked += OnUpdateTicked; // Runs multiple times per second
+            helper.Events.GameLoop.GameLaunched += OnGameLaunched;
         }
 
         /// <summary>Logs in to the RetroAchievements API.</summary>
