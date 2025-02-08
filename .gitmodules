@@ -1,0 +1,3 @@
+[submodule "Libraries/RASharpIntegration"]
+	path = Libraries/RASharpIntegration
+	url = https://github.com/timenoe/RASharpIntegration
