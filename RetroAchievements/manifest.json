@@ -1,0 +1,10 @@
+{
+  "Name": "RetroAchievements",
+  "Author": "Brylefi",
+  "Version": "1.0.0",
+  "Description": "Retroachievements support for Stardew Valley",
+  "UniqueID": "Brylefi.RetroAchievements",
+  "EntryDll": "RetroAchievements.dll",
+  "MinimumApiVersion": "4.0.0",
+  "UpdateKeys": []
+}
