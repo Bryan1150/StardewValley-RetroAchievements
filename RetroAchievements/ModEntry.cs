@@ -4,6 +4,7 @@ using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewModdingAPI.Utilities;
 using StardewValley;
+using StardewValley.Menus;
 using StardewValley.Constants;
 using RASharpIntegration.Network;
 using xTile;
@@ -27,8 +28,8 @@ namespace RetroAchievements
         private const string Host = "stage.retroachievements.org";
         private const string UserAgent = "StardewValleyRetroAchievements/1.0";
         private const int GameId = 32123; // Replace with your game ID
-        private string Username; // Replace with your credentials
-        private string Password; // Replace with your credentials
+        private string Username;
+        private string Password;
 
         private HashSet<int> previousAchievements = new HashSet<int>();
 
@@ -45,6 +46,11 @@ namespace RetroAchievements
 
         private RequestHeader _header;
         private HttpClient _client;
+
+        public static void SendChatMessage(string message, Color color)
+        {
+            Game1.chatBox.addMessage(message, color);
+        }
 
         private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
         {
@@ -79,9 +85,18 @@ namespace RetroAchievements
                 mod: this.ModManifest,
                 name: () => "Password",
                 getValue: () => new string('*', this.Config.Password.Length), // Mask it
-                setValue: value => this.Config.Password = value
-
+                setValue: value =>
+                {
+                    if (!value.All(c => c == '*'))
+                    {
+                        this.Config.Password = value;
+                    }
+                }
             );
+
+            // Hide config menu when a save is loaded
+            this.Helper.Events.GameLoop.SaveLoaded += (s, args) => configMenu.Unregister(this.ModManifest);
+
         }
 
 
@@ -99,6 +114,12 @@ namespace RetroAchievements
             helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
             helper.Events.GameLoop.UpdateTicked += OnUpdateTicked; // Runs multiple times per second
             helper.Events.GameLoop.GameLaunched += OnGameLaunched;
+            helper.Events.GameLoop.ReturnedToTitle += OnReturnedToTitle;
+        }
+
+        private void OnReturnedToTitle(object sender, ReturnedToTitleEventArgs e)
+        {
+            OnGameLaunched(sender, null);
         }
 
         /// <summary>Logs in to the RetroAchievements API.</summary>
@@ -107,6 +128,7 @@ namespace RetroAchievements
         private async Task Login(string user, string pass)
         {
             _header.user = user;
+            SendChatMessage($"Logging in {user} to {_header.host}...", Color.LimeGreen);
             Monitor.Log($"Logging in {user} to {_header.host}...", LogLevel.Warn);
 
             try
@@ -116,21 +138,25 @@ namespace RetroAchievements
                 if (!string.IsNullOrEmpty(api.Failure))
                 {
                     Monitor.Log($"Unable to login ({api.Failure})", LogLevel.Warn);
+                    SendChatMessage($"Unable to login ({api.Failure})", Color.Red);
                     return;
                 }
 
                 if (!api.Response.Success)
                 {
                     Monitor.Log($"Unable to login ({api.Response.Error})", LogLevel.Warn);
+                    SendChatMessage($"Unable to login ({api.Response.Error})", Color.Red);
                     return;
                 }
 
                 _header.token = api.Response.Token;
-                Monitor.Log($"{user} has successfully logged in!", LogLevel.Warn);
+                Monitor.Log($"{user} has successfully logged in RetroAchievements!", LogLevel.Warn);
+                SendChatMessage($"{user} has successfully logged in RetroAchievements!", Color.LimeGreen);
             }
             catch (Exception ex)
             {
                 Monitor.Log($"Exception during login: {ex.Message}", LogLevel.Error);
+                SendChatMessage($"Exception during login: {ex.Message}", Color.Red);
             }
         }
 
@@ -158,6 +184,7 @@ namespace RetroAchievements
         private void OnSaveLoaded(object sender, SaveLoadedEventArgs e)
         {
             // Store achievements the player has already unlocked
+
             Monitor.Log("All installed mods are whitelisted. Running normally.", LogLevel.Info);
             previousAchievements = new HashSet<int>(Game1.player.achievements);
 
@@ -170,6 +197,8 @@ namespace RetroAchievements
             );
             _client.DefaultRequestHeaders.Add("User-Agent", $"StardewValleyRetroAchievements/1.0");
             // Perform login
+            Username = this.Config.Username;
+            Password = this.Config.Password;
             Task.Run(() => Login(Username, Password)).Wait(); // Replace with your credentials
         }
 
