@@ -1,0 +1,21 @@
+{
+  "Format": "2.5.0",
+  "Changes": [
+    {
+      "Action": "EditData",
+      "Target": "Data/Achievements",
+      "Entries": {
+        "100": "Hello World^Test^true^-1^18"
+      }
+    },
+
+    {
+      "Action": "EditData",
+      "Target": "Data/NPCDispositions",
+      "Entries": {
+        "Shane": "friendly/neutral/male/non-datable//ShaneTheGreat//"
+      }
+    }
+  ],
+
+}

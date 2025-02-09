@@ -6,5 +6,11 @@
   "UniqueID": "Brylefi.RetroAchievements",
   "EntryDll": "RetroAchievements.dll",
   "MinimumApiVersion": "4.0.0",
-  "UpdateKeys": []
+  "UpdateKeys": [],
+  "Dependencies": [
+    {
+      "UniqueID": "Pathoschild.ContentPatcher",
+      "IsRequired": true
+    }
+  ]
 }

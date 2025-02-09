@@ -8,7 +8,6 @@ using StardewValley.Menus;
 using StardewValley.Constants;
 using RASharpIntegration.Network;
 using xTile;
-using GenericModConfigMenu;
 
 #nullable disable
 
@@ -37,11 +36,13 @@ namespace RetroAchievements
         private readonly HashSet<string> allowedMods = new HashSet<string>
             {
                 "Pathoschild.SMAPI",       // SMAPI (always required)
+                "Brylefi.customAchievements",
                 "CJBok.CheatsMenu",
                 "SMAPI.ConsoleCommands",
                 "Brylefi.RetroAchievements",
                 "SMAPI.SaveBackup",
-                "spacechase0.GenericModConfigMenu"
+                "spacechase0.GenericModConfigMenu",
+                "Pathoschild.ContentPatcher"
             };
 
         private RequestHeader _header;
@@ -55,47 +56,47 @@ namespace RetroAchievements
         private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
         {
             // get Generic Mod Config Menu's API (if it's installed)
-            var configMenu = this.Helper.ModRegistry.GetApi<IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
+            var configMenu = Helper.ModRegistry.GetApi<IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
             if (configMenu is null)
                 return;
 
             // register mod
             configMenu.Register(
-                mod: this.ModManifest,
-                reset: () => this.Config = new ModConfig(),
-                save: () => this.Helper.WriteConfig(this.Config)
+                mod: ModManifest,
+                reset: () => Config = new ModConfig(),
+                save: () => Helper.WriteConfig(Config)
             );
 
             // add some config options
             configMenu.AddBoolOption(
-                mod: this.ModManifest,
+                mod: ModManifest,
                 name: () => "Turn on Hardcore",
                 tooltip: () => "This blocks non-white listed mods",
-                getValue: () => this.Config.ExampleCheckbox,
-                setValue: value => this.Config.ExampleCheckbox = value
+                getValue: () => Config.ExampleCheckbox,
+                setValue: value => Config.ExampleCheckbox = value
             );
             configMenu.AddTextOption(
-                mod: this.ModManifest,
+                mod: ModManifest,
                 name: () => "Username",
-                getValue: () => this.Config.Username,
-                setValue: value => this.Config.Username = value
+                getValue: () => Config.Username,
+                setValue: value => Config.Username = value
             );
 
             configMenu.AddTextOption(
-                mod: this.ModManifest,
+                mod: ModManifest,
                 name: () => "Password",
-                getValue: () => new string('*', this.Config.Password.Length), // Mask it
+                getValue: () => new string('*', Config.Password.Length), // Mask it
                 setValue: value =>
                 {
                     if (!value.All(c => c == '*'))
                     {
-                        this.Config.Password = value;
+                        Config.Password = value;
                     }
                 }
             );
 
             // Hide config menu when a save is loaded
-            this.Helper.Events.GameLoop.SaveLoaded += (s, args) => configMenu.Unregister(this.ModManifest);
+            Helper.Events.GameLoop.SaveLoaded += (s, args) => configMenu.Unregister(ModManifest);
 
         }
 
@@ -104,7 +105,7 @@ namespace RetroAchievements
         /// <param name="helper">Provides methods for interacting with the modding API.</param>
         public override void Entry(IModHelper helper)
         {
-            this.Config = this.Helper.ReadConfig<ModConfig>();
+            Config = Helper.ReadConfig<ModConfig>();
             if (!IsWhitelistedModsOnly())
             {
                 Monitor.Log("Unapproved mods detected! This mod will not run.", LogLevel.Warn);
@@ -197,8 +198,8 @@ namespace RetroAchievements
             );
             _client.DefaultRequestHeaders.Add("User-Agent", $"StardewValleyRetroAchievements/1.0");
             // Perform login
-            Username = this.Config.Username;
-            Password = this.Config.Password;
+            Username = Config.Username;
+            Password = Config.Password;
             Task.Run(() => Login(Username, Password)).Wait(); // Replace with your credentials
         }
 
