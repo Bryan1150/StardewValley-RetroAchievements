@@ -73,17 +73,33 @@ namespace RetroAchievements
         }
 
         /// <summary>Event handler for when the game updates.</summary>
-        private void OnUpdateTicked(object sender, UpdateTickedEventArgs e)
+        private async void OnUpdateTicked(object sender, UpdateTickedEventArgs e)
         {
             // Run check once every second (game runs at 60 ticks per second)
-            if (e.IsMultipleOf(60))
+            if (e.IsMultipleOf(60) && Context.IsWorldReady)
             {
-                if (Game1.player.stats.CropsShipped >= 1 && !Game1.player.achievements.Contains(999))
+                if (Game1.player.stats.CropsShipped >= 1 && !Game1.player.achievements.Contains(100))
                 {
-                    UnlockAchievement(100, "Harvest Master");
+                    UnlockAchievement(100, "Hello Crop");
                 }
-                CheckForNewAchievements();
+                if (Game1.player.stats.FishCaught >= 1 && !Game1.player.achievements.Contains(101))
+                {
+                    UnlockAchievement(101, "Hello Fish");
+                }
+                if (Game1.player.mineralsFound.Count() >= 1 && !Game1.player.achievements.Contains(102))
+                {
+                    UnlockAchievement(102, "Hello Mine");
+                }
+                if (Game1.player.craftingRecipes.TryGetValue("Wood Fence", out int count) && count > 0 && !Game1.player.achievements.Contains(103))
+                {
+                    UnlockAchievement(103, "Hello Craft");
+                }
+                if (Game1.player.Money >= 1000 && !Game1.player.achievements.Contains(105))
+                {
+                    UnlockAchievement(104, "Hello Wealth");
+                }
 
+                await CheckForNewAchievements();
             }
         }
 
@@ -144,6 +160,12 @@ namespace RetroAchievements
         /// <summary>Event handler for when the save is loaded.</summary>
         private void OnSaveLoaded(object sender, SaveLoadedEventArgs e)
         {
+            // Print the list of crafted items for debugging purposes
+            //foreach (var item in Game1.player.craftingRecipes.Pairs)
+            //{
+            //    Monitor.Log($"Crafted item: {item.Key}, Quantity: {item.Value}", LogLevel.Debug);
+            //}
+
             // Store achievements the player has already unlocked
 
             Monitor.Log("All installed mods are whitelisted. Running normally.", LogLevel.Info);
@@ -231,6 +253,15 @@ namespace RetroAchievements
             return true;
         }
 
+        private readonly Dictionary<int, int> achievementIdMap = new Dictionary<int, int>
+        {
+            { 100, 483647},
+            { 101, 483648},
+            { 102, 483649},
+            { 103, 483650},
+            { 104, 483651}
+        };
+
         /// <summary>Checks for new achievements and sends them to the RetroAchievements API.</summary>
         private async Task CheckForNewAchievements()
         {
@@ -243,23 +274,38 @@ namespace RetroAchievements
                         : "Unknown Achievement";
 
                     Monitor.Log($"Achievement unlocked: {achievementId} - {achievementName}", LogLevel.Info);
+                    SendChatMessage($"Achievement unlocked: {achievementId} - {achievementName}", Color.LimeGreen);
                     previousAchievements.Add(achievementId);
 
-                    // Send achievement to the RetroAchievements API
-                    ApiResponse<AwardAchievementResponse> api = await NetworkInterface.TryAwardAchievement(_client, _header, 483247);
-                    if (!string.IsNullOrEmpty(api.Failure))
+                    // Map in-game achievement ID to RetroAchievements ID
+                    if (achievementIdMap.TryGetValue(achievementId, out int retroAchievementId))
                     {
-                        Monitor.Log($"Failed to unlock achievement ({api.Failure})", LogLevel.Warn);
-                    }
-                    else if (!api.Response.Success)
-                    {
-                        Monitor.Log($"Failed to unlock achievement ({api.Response.Error})", LogLevel.Warn);
+                        // Send achievement to the RetroAchievements API
+                        await SendAchievementToApi(retroAchievementId);
                     }
                     else
                     {
-                        Monitor.Log($"Achievement {achievementId} successfully unlocked on RetroAchievements!", LogLevel.Info);
+                        Monitor.Log($"No mapping found for in-game achievement ID: {achievementId}", LogLevel.Warn);
                     }
                 }
+            }
+        }
+
+        private async Task SendAchievementToApi(int achievementId)
+        {
+            // Send achievement to the RetroAchievements API
+            ApiResponse<AwardAchievementResponse> api = await NetworkInterface.TryAwardAchievement(_client, _header, achievementId);
+            if (!string.IsNullOrEmpty(api.Failure))
+            {
+                Monitor.Log($"Failed to unlock achievement ({api.Failure})", LogLevel.Warn);
+            }
+            else if (!api.Response.Success)
+            {
+                Monitor.Log($"Failed to unlock achievement ({api.Response.Error})", LogLevel.Warn);
+            }
+            else
+            {
+                Monitor.Log($"Achievement {achievementId} successfully unlocked on RetroAchievements!", LogLevel.Info);
             }
         }
     }

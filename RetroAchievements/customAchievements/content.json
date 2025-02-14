@@ -5,17 +5,12 @@
       "Action": "EditData",
       "Target": "Data/Achievements",
       "Entries": {
-        "100": "Hello World^Test^true^-1^18"
-      }
-    },
-
-    {
-      "Action": "EditData",
-      "Target": "Data/NPCDispositions",
-      "Entries": {
-        "Shane": "friendly/neutral/male/non-datable//ShaneTheGreat//"
+        "100": "Hello Crops^Ship your very 1st crop^true^-1^9",
+        "101": "Hello Fish^Catch your very 1st fish^true^-1^9",
+        "102": "Hello Mine^Mine your very 1st mineral^true^-1^9",
+        "103": "Hello Craft^Craft a Wooden Fence^true^-1^9",
+        "104": "Hello Wealth^Earn 1000g^true^-1^9"
       }
     }
-  ],
-
+  ]
 }
