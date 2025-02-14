@@ -20,13 +20,13 @@ namespace RetroAchievements
         {
             public string Username { get; set; } = string.Empty;
             public string Password { get; set; } = string.Empty;
-            public bool ExampleCheckbox { get; set; } = true; // Add this line
+            public bool Hardcore { get; set; } = true; // Add this line
         }
         private ModConfig Config;
 
         private const string Host = "stage.retroachievements.org";
         private const string UserAgent = "StardewValleyRetroAchievements/1.0";
-        private const int GameId = 32123; // Replace with your game ID
+        private const int GameId = 32123;
         private string Username;
         private string Password;
 
@@ -48,11 +48,46 @@ namespace RetroAchievements
         private RequestHeader _header;
         private HttpClient _client;
 
+        /// <summary>The mod entry point, called after the mod is first loaded.</summary>
+        /// <param name="helper">Provides methods for interacting with the modding API.</param>
+        public override void Entry(IModHelper helper)
+        {
+            Config = Helper.ReadConfig<ModConfig>();
+            if (!IsWhitelistedModsOnly())
+            {
+                Monitor.Log("Unapproved mods detected! This mod will not run.", LogLevel.Warn);
+                return; // Stop execution
+            }
+
+            helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
+            helper.Events.GameLoop.UpdateTicked += OnUpdateTicked; // Runs multiple times per second
+            helper.Events.GameLoop.GameLaunched += OnGameLaunched;
+            helper.Events.GameLoop.ReturnedToTitle += OnReturnedToTitle;
+            //helper.Events.GameLoop.DayStarted += OnDayStarted;
+        }
+
+        //Function to send chat messages in-game
         public static void SendChatMessage(string message, Color color)
         {
             Game1.chatBox.addMessage(message, color);
         }
 
+        /// <summary>Event handler for when the game updates.</summary>
+        private void OnUpdateTicked(object sender, UpdateTickedEventArgs e)
+        {
+            // Run check once every second (game runs at 60 ticks per second)
+            if (e.IsMultipleOf(60))
+            {
+                if (Game1.player.stats.CropsShipped >= 1 && !Game1.player.achievements.Contains(999))
+                {
+                    UnlockAchievement(100, "Harvest Master");
+                }
+                CheckForNewAchievements();
+
+            }
+        }
+
+        //Function of what to append when the game is launched.
         private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
         {
             // get Generic Mod Config Menu's API (if it's installed)
@@ -72,8 +107,8 @@ namespace RetroAchievements
                 mod: ModManifest,
                 name: () => "Turn on Hardcore",
                 tooltip: () => "This blocks non-white listed mods",
-                getValue: () => Config.ExampleCheckbox,
-                setValue: value => Config.ExampleCheckbox = value
+                getValue: () => Config.Hardcore,
+                setValue: value => Config.Hardcore = value
             );
             configMenu.AddTextOption(
                 mod: ModManifest,
@@ -100,27 +135,42 @@ namespace RetroAchievements
 
         }
 
-
-        /// <summary>The mod entry point, called after the mod is first loaded.</summary>
-        /// <param name="helper">Provides methods for interacting with the modding API.</param>
-        public override void Entry(IModHelper helper)
-        {
-            Config = Helper.ReadConfig<ModConfig>();
-            if (!IsWhitelistedModsOnly())
-            {
-                Monitor.Log("Unapproved mods detected! This mod will not run.", LogLevel.Warn);
-                return; // Stop execution
-            }
-
-            helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
-            helper.Events.GameLoop.UpdateTicked += OnUpdateTicked; // Runs multiple times per second
-            helper.Events.GameLoop.GameLaunched += OnGameLaunched;
-            helper.Events.GameLoop.ReturnedToTitle += OnReturnedToTitle;
-        }
-
+        //Function of what to append when returned to title.
         private void OnReturnedToTitle(object sender, ReturnedToTitleEventArgs e)
         {
             OnGameLaunched(sender, null);
+        }
+
+        /// <summary>Event handler for when the save is loaded.</summary>
+        private void OnSaveLoaded(object sender, SaveLoadedEventArgs e)
+        {
+            // Store achievements the player has already unlocked
+
+            Monitor.Log("All installed mods are whitelisted. Running normally.", LogLevel.Info);
+            previousAchievements = new HashSet<int>(Game1.player.achievements);
+
+            // Initialize the RetroAchievements API
+            _client = new HttpClient();
+            _header = new RequestHeader(
+                host: Host,
+                game: GameId,
+                hardcore: false
+            );
+            _client.DefaultRequestHeaders.Add("User-Agent", $"StardewValleyRetroAchievements/1.0");
+            // Perform login
+            Username = Config.Username;
+            Password = Config.Password;
+            Task.Run(() => Login(Username, Password)).Wait(); // Replace with your credentials
+        }
+
+        //Function to unlock an specific achievement in-game
+        private void UnlockAchievement(int id, string name)
+        {
+            if (!Game1.player.achievements.Contains(id))
+            {
+                Game1.player.achievements.Add(id);
+                Game1.addHUDMessage(new HUDMessage($"Achievement Unlocked: {name}!", 2));
+            }
         }
 
         /// <summary>Logs in to the RetroAchievements API.</summary>
@@ -179,38 +229,6 @@ namespace RetroAchievements
             }
 
             return true;
-        }
-
-        /// <summary>Event handler for when the save is loaded.</summary>
-        private void OnSaveLoaded(object sender, SaveLoadedEventArgs e)
-        {
-            // Store achievements the player has already unlocked
-
-            Monitor.Log("All installed mods are whitelisted. Running normally.", LogLevel.Info);
-            previousAchievements = new HashSet<int>(Game1.player.achievements);
-
-            // Initialize the RetroAchievements API
-            _client = new HttpClient();
-            _header = new RequestHeader(
-                host: Host,
-                game: GameId,
-                hardcore: false
-            );
-            _client.DefaultRequestHeaders.Add("User-Agent", $"StardewValleyRetroAchievements/1.0");
-            // Perform login
-            Username = Config.Username;
-            Password = Config.Password;
-            Task.Run(() => Login(Username, Password)).Wait(); // Replace with your credentials
-        }
-
-        /// <summary>Event handler for when the game updates.</summary>
-        private void OnUpdateTicked(object sender, UpdateTickedEventArgs e)
-        {
-            // Run check once every second (game runs at 60 ticks per second)
-            if (e.IsMultipleOf(60))
-            {
-                CheckForNewAchievements();
-            }
         }
 
         /// <summary>Checks for new achievements and sends them to the RetroAchievements API.</summary>
